@@ -192,7 +192,7 @@ router.delete('/:id/medicine/:itemId', async (req, res) => {
 
 // --- COPY CHECKLISTS FROM ANOTHER TRIP ---
 router.post('/:id/copy-from/:sourceId', async (req, res) => {
-  const { copyTasks, copyPacking } = req.body;
+  const { copyTasks, copyPacking, copyMedicine } = req.body;
   const targetId = req.params.id;
   const sourceId = req.params.sourceId;
   const client = await pool.connect();
@@ -220,6 +220,19 @@ router.post('/:id/copy-from/:sourceId', async (req, res) => {
       for (const item of items.rows) {
         await client.query(
           'INSERT INTO packing_items (trip_id, text) VALUES ($1, $2)',
+          [targetId, item.text]
+        );
+      }
+    }
+
+    if (copyMedicine) {
+      const items = await client.query(
+        'SELECT text FROM medicine_items WHERE trip_id = $1',
+        [sourceId]
+      );
+      for (const item of items.rows) {
+        await client.query(
+          'INSERT INTO medicine_items (trip_id, text) VALUES ($1, $2)',
           [targetId, item.text]
         );
       }

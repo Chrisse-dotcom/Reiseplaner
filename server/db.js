@@ -54,6 +54,16 @@ async function initDB() {
         checked BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT NOW()
       );
+
+      CREATE TABLE IF NOT EXISTS geo_cache (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        cache_key VARCHAR(500) NOT NULL UNIQUE,
+        svg_path TEXT,
+        view_box VARCHAR(100),
+        dest_x FLOAT,
+        dest_y FLOAT,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
     `);
     console.log('Database initialized successfully');
   } finally {
