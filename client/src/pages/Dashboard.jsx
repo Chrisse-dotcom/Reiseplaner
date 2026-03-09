@@ -128,7 +128,12 @@ export default function Dashboard({ tripId, onBack }) {
           </button>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: '0.8rem', opacity: 0.75, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reise nach</div>
-            <h2 style={{ color: 'white', fontSize: '1.5rem' }}>{trip.destination}</h2>
+            <h2 style={{ color: 'white', fontSize: '1.5rem' }}>
+              {trip.destination}
+              {trip.country && trip.country !== trip.destination && (
+                <span style={{ fontSize: '1rem', fontWeight: 400, opacity: 0.8 }}>, {trip.country}</span>
+              )}
+            </h2>
           </div>
         </div>
 

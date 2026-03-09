@@ -24,27 +24,31 @@ const POPULAR_DESTINATIONS = [
 ];
 
 export default function DestinationScreen({ onBack, onCreate }) {
-  const [destination, setDestination] = useState('');
+  const [country, setCountry] = useState('');
+  const [city, setCity] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const filtered = destination.length >= 1
+  const filtered = country.length >= 1
     ? POPULAR_DESTINATIONS.filter((d) =>
-        d.name.toLowerCase().includes(destination.toLowerCase())
+        d.name.toLowerCase().includes(country.toLowerCase())
       )
     : [];
 
-  const handleCreate = async (dest) => {
-    const finalDest = dest || destination.trim();
-    if (!finalDest) return;
+  const handleCreate = async () => {
+    const finalCountry = country.trim();
+    if (!finalCountry) return;
+    // destination = city if given, otherwise = country (fallback for geo pin)
+    const finalDestination = city.trim() || finalCountry;
     setLoading(true);
     try {
       const res = await fetch('/api/trips', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          destination: finalDest,
+          destination: finalDestination,
+          country: finalCountry,
           start_date: startDate || null,
           end_date: endDate || null,
         }),
@@ -66,17 +70,17 @@ export default function DestinationScreen({ onBack, onCreate }) {
       </div>
 
       <div className="page">
-        {/* Destination input */}
-        <div style={{ marginBottom: 24 }}>
+        {/* Country input */}
+        <div style={{ marginBottom: 20 }}>
           <label style={{ display: 'block', fontWeight: 600, marginBottom: 8 }}>
-            📍 Wohin reist du?
+            🌍 Land / Reiseziel
           </label>
           <input
             className="input"
             style={{ borderRadius: filtered.length > 0 ? '8px 8px 0 0' : 8 }}
-            placeholder="Reiseziel eingeben..."
-            value={destination}
-            onChange={(e) => setDestination(e.target.value)}
+            placeholder="z.B. Thailand, Japan, Italien..."
+            value={country}
+            onChange={(e) => { setCountry(e.target.value); setCity(''); }}
             autoFocus
           />
           {filtered.length > 0 && (
@@ -86,7 +90,7 @@ export default function DestinationScreen({ onBack, onCreate }) {
                   key={d.name}
                   className="suggestion-item"
                   onClick={() => {
-                    setDestination(d.name);
+                    setCountry(d.name);
                   }}
                 >
                   {d.emoji} {d.name}
@@ -96,8 +100,26 @@ export default function DestinationScreen({ onBack, onCreate }) {
           )}
         </div>
 
+        {/* City / Region input – shown once a country is entered */}
+        {country.trim().length > 0 && (
+          <div style={{ marginBottom: 24 }}>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 8 }}>
+              📍 Stadt oder Region <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(optional)</span>
+            </label>
+            <input
+              className="input"
+              placeholder={`z.B. Bangkok, Bali, Tokio...`}
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+            />
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 6 }}>
+              Für einen genauen Punkt auf dem Länderumriss im Dashboard
+            </p>
+          </div>
+        )}
+
         {/* Popular destinations */}
-        {destination.length === 0 && (
+        {country.length === 0 && (
           <div style={{ marginBottom: 24 }}>
             <p style={{ fontWeight: 600, marginBottom: 12 }}>🌟 Beliebte Reiseziele</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -112,7 +134,7 @@ export default function DestinationScreen({ onBack, onCreate }) {
                     fontSize: '0.9rem',
                     fontWeight: 500,
                   }}
-                  onClick={() => setDestination(d.name)}
+                  onClick={() => setCountry(d.name)}
                 >
                   {d.emoji} {d.name}
                 </button>
@@ -150,10 +172,10 @@ export default function DestinationScreen({ onBack, onCreate }) {
         <button
           className="btn btn-primary btn-full"
           style={{ fontSize: '1.05rem', padding: 16, borderRadius: 14 }}
-          disabled={!destination.trim() || loading}
-          onClick={() => handleCreate()}
+          disabled={!country.trim() || loading}
+          onClick={handleCreate}
         >
-          {loading ? '...' : `✈️ Reise nach ${destination || '...'} erstellen`}
+          {loading ? '...' : `✈️ Reise nach ${city.trim() || country || '...'} erstellen`}
         </button>
       </div>
     </div>
