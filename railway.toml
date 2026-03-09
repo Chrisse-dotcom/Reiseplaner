@@ -1,0 +1,13 @@
+[build]
+builder = "nixpacks"
+buildCommand = "npm run install:all && npm run build"
+
+[deploy]
+startCommand = "npm start"
+healthcheckPath = "/api/trips"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[[services]]
+name = "reiseplaner"
