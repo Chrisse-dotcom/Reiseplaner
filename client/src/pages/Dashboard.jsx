@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import TaskList from '../components/TaskList';
 import PackingList from '../components/PackingList';
+import MedicineList from '../components/MedicineList';
 import TravelInfoModal from './TravelInfoModal';
 import CopyChecklistModal from './CopyChecklistModal';
 
@@ -215,6 +216,24 @@ export default function Dashboard({ tripId, onBack }) {
               </span>
             )}
           </button>
+          <button
+            className={`tab ${activeTab === 'medicine' ? 'active' : ''}`}
+            onClick={() => setActiveTab('medicine')}
+          >
+            💊 Apotheke
+            {(trip.medicineItems || []).filter((i) => !i.checked).length > 0 && (
+              <span style={{
+                marginLeft: 6,
+                background: '#7e22ce',
+                color: 'white',
+                borderRadius: 99,
+                padding: '0 6px',
+                fontSize: '0.75rem',
+              }}>
+                {(trip.medicineItems || []).filter((i) => !i.checked).length}
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Tab Content */}
@@ -231,6 +250,15 @@ export default function Dashboard({ tripId, onBack }) {
             tripId={tripId}
             items={trip.packingItems || []}
             onChange={(packingItems) => setTrip({ ...trip, packingItems })}
+          />
+        )}
+
+        {activeTab === 'medicine' && (
+          <MedicineList
+            tripId={tripId}
+            trip={trip}
+            items={trip.medicineItems || []}
+            onChange={(medicineItems) => setTrip({ ...trip, medicineItems })}
           />
         )}
       </div>
