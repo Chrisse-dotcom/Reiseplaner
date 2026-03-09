@@ -35,6 +35,17 @@ async function initDB() {
         checked BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT NOW()
       );
+
+      CREATE TABLE IF NOT EXISTS travel_info_cache (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        destination VARCHAR(255) NOT NULL,
+        country VARCHAR(255) NOT NULL DEFAULT '',
+        content TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS travel_info_cache_dest_country
+        ON travel_info_cache(destination, country);
     `);
     console.log('Database initialized successfully');
   } finally {
