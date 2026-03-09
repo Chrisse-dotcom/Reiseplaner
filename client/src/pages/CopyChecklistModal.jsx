@@ -6,6 +6,7 @@ export default function CopyChecklistModal({ currentTripId, onClose, onCopied })
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [copyTasks, setCopyTasks] = useState(true);
   const [copyPacking, setCopyPacking] = useState(true);
+  const [copyMedicine, setCopyMedicine] = useState(true);
   const [copying, setCopying] = useState(false);
 
   useEffect(() => {
@@ -22,7 +23,7 @@ export default function CopyChecklistModal({ currentTripId, onClose, onCopied })
       await fetch(`/api/trips/${currentTripId}/copy-from/${selectedTrip}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ copyTasks, copyPacking }),
+        body: JSON.stringify({ copyTasks, copyPacking, copyMedicine }),
       });
       onCopied();
       onClose();
@@ -32,6 +33,8 @@ export default function CopyChecklistModal({ currentTripId, onClose, onCopied })
       setCopying(false);
     }
   };
+
+  const nothingSelected = !copyTasks && !copyPacking && !copyMedicine;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -55,9 +58,9 @@ export default function CopyChecklistModal({ currentTripId, onClose, onCopied })
               onChange={(e) => setCopyTasks(e.target.checked)}
               style={{ width: 18, height: 18, accentColor: 'var(--primary)' }}
             />
-            <span>📋 Aufgaben-Checkliste (To-do vor der Reise)</span>
+            <span>📋 Aufgaben-Checkliste</span>
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, cursor: 'pointer' }}>
             <input
               type="checkbox"
               checked={copyPacking}
@@ -65,6 +68,15 @@ export default function CopyChecklistModal({ currentTripId, onClose, onCopied })
               style={{ width: 18, height: 18, accentColor: 'var(--primary)' }}
             />
             <span>🧳 Packliste</span>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={copyMedicine}
+              onChange={(e) => setCopyMedicine(e.target.checked)}
+              style={{ width: 18, height: 18, accentColor: '#7e22ce' }}
+            />
+            <span>💊 Reiseapotheke</span>
           </label>
         </div>
 
@@ -109,7 +121,7 @@ export default function CopyChecklistModal({ currentTripId, onClose, onCopied })
           </button>
           <button
             className="btn btn-primary btn-full"
-            disabled={!selectedTrip || (!copyTasks && !copyPacking) || copying}
+            disabled={!selectedTrip || nothingSelected || copying}
             onClick={handleCopy}
           >
             {copying ? '...' : '📋 Kopieren'}

@@ -27,10 +27,19 @@ export default function Dashboard({ tripId, onBack }) {
   const [activeTab, setActiveTab] = useState('tasks');
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showCopyModal, setShowCopyModal] = useState(false);
+  const [geoData, setGeoData] = useState(null);
 
   useEffect(() => {
     loadTrip();
   }, [tripId]);
+
+  useEffect(() => {
+    if (!trip) return;
+    fetch(`/api/country-outline?destination=${encodeURIComponent(trip.destination)}&country=${encodeURIComponent(trip.country || '')}`)
+      .then((r) => r.json())
+      .then((data) => setGeoData(data))
+      .catch(() => {});
+  }, [trip?.destination, trip?.country]);
 
   const loadTrip = () => {
     fetch(`${API}/${tripId}`)
@@ -78,8 +87,39 @@ export default function Dashboard({ tripId, onBack }) {
         background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
         padding: '16px 16px 20px',
         color: 'white',
+        position: 'relative',
+        overflow: 'hidden',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+        {/* Country outline background */}
+        {geoData && (
+          <svg
+            viewBox={geoData.viewBox}
+            preserveAspectRatio="xMidYMid meet"
+            style={{
+              position: 'absolute',
+              right: -10,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              height: '160%',
+              width: '52%',
+              pointerEvents: 'none',
+            }}
+          >
+            <path
+              d={geoData.svgPath}
+              fill="rgba(255,255,255,0.08)"
+              stroke="rgba(255,255,255,0.22)"
+              strokeWidth={0.7}
+              strokeLinejoin="round"
+            />
+            {/* destination glow */}
+            <circle cx={geoData.destX} cy={geoData.destY} r={12} fill="rgba(255,255,255,0.1)" />
+            <circle cx={geoData.destX} cy={geoData.destY} r={5}  fill="rgba(255,255,255,0.75)" />
+            <circle cx={geoData.destX} cy={geoData.destY} r={2}  fill="white" />
+          </svg>
+        )}
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, position: 'relative' }}>
           <button
             style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 8, padding: '6px 10px', color: 'white', fontSize: '1.1rem', cursor: 'pointer' }}
             onClick={onBack}
@@ -94,7 +134,7 @@ export default function Dashboard({ tripId, onBack }) {
 
         {/* Trip dates */}
         {trip.start_date && (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', position: 'relative' }}>
             <span style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 99, padding: '4px 12px', fontSize: '0.85rem' }}>
               📅 {formatDate(trip.start_date)}
               {trip.end_date && ` → ${formatDate(trip.end_date)}`}
