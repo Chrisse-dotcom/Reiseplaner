@@ -229,4 +229,61 @@ Berücksichtige typische Risiken des Reiselands: Klima, häufige Erkrankungen, H
   }
 });
 
+// ── Flight lookup via web search ────────────────────────────────────────────
+
+router.post('/flight-lookup', async (req, res) => {
+  const { flightNumber, date } = req.body;
+  if (!flightNumber) return res.status(400).json({ error: 'Flugnummer erforderlich' });
+
+  const prompt = `Suche aktuelle Flugdaten für Flug ${flightNumber.trim()}${date ? ' am ' + date : ''}.
+Antworte NUR mit einem JSON-Objekt (kein Markdown, keine Erklärung darum):
+{"airline":"Name der Fluggesellschaft","departure_airport":"IATA","arrival_airport":"IATA","departure_time":"HH:MM","arrival_time":"HH:MM","gate":null,"terminal":null}
+IATA = 3 Großbuchstaben. null für unbekannte Felder.`;
+
+  const tools = [{ type: 'web_search_20260209', name: 'web_search' }];
+  let messages = [{ role: 'user', content: prompt }];
+
+  try {
+    let response = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1024,
+      tools,
+      messages,
+    });
+
+    // Server-side tool hit iteration limit → re-send to continue (max 3x)
+    let continuations = 0;
+    while (response.stop_reason === 'pause_turn' && continuations < 3) {
+      continuations++;
+      messages = [
+        { role: 'user', content: prompt },
+        { role: 'assistant', content: response.content },
+      ];
+      response = await client.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1024,
+        tools,
+        messages,
+      });
+    }
+
+    const text = response.content
+      .filter(b => b.type === 'text')
+      .map(b => b.text)
+      .join('');
+
+    const match = text.match(/\{[\s\S]*?\}/);
+    if (match) {
+      try {
+        return res.json(JSON.parse(match[0]));
+      } catch (_) { /* invalid JSON, fall through */ }
+    }
+
+    res.status(422).json({ error: 'Keine Flugdaten gefunden' });
+  } catch (err) {
+    console.error('Flight lookup error:', err);
+    res.status(500).json({ error: 'Suche fehlgeschlagen: ' + err.message });
+  }
+});
+
 module.exports = router;
