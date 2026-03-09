@@ -91,4 +91,34 @@ Antworte auf Deutsch und sei konkret und praxisnah.`;
   }
 });
 
+router.post('/medicine-suggestions', async (req, res) => {
+  const { destination, country } = req.body;
+  if (!destination) return res.status(400).json({ error: 'Destination required' });
+
+  const prompt = `Du bist ein erfahrener Reisemediziner. Erstelle eine kompakte Packliste für die Reiseapotheke für eine Reise nach ${destination}${country ? `, ${country}` : ''}.
+
+Antworte NUR mit einer JSON-Liste von Strings, ohne Erklärungen, ohne Markdown-Blöcke, nur reines JSON-Array.
+Gib 15-25 konkrete Einträge zurück, passend für das Reiseland (z.B. Malariaprophylaxe nur wenn relevant, Sonnenschutz bei Tropenreisen etc.).
+
+Beispiel-Format:
+["Schmerzmittel (Ibuprofen/Paracetamol)", "Pflaster-Sortiment", "Desinfektionsmittel"]
+
+Berücksichtige typische Risiken des Reiselands: Klima, häufige Erkrankungen, Hygieneverhältnisse, verfügbare medizinische Versorgung vor Ort.`;
+
+  try {
+    const message = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 800,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const raw = message.content[0].text.trim();
+    const items = JSON.parse(raw);
+    res.json({ items });
+  } catch (err) {
+    console.error('Medicine suggestions error:', err);
+    res.status(500).json({ error: 'Fehler beim Abrufen der Empfehlungen: ' + err.message });
+  }
+});
+
 module.exports = router;

@@ -28,11 +28,16 @@ router.get('/:id', async (req, res) => {
       'SELECT * FROM packing_items WHERE trip_id = $1 ORDER BY created_at ASC',
       [req.params.id]
     );
+    const medicine = await pool.query(
+      'SELECT * FROM medicine_items WHERE trip_id = $1 ORDER BY created_at ASC',
+      [req.params.id]
+    );
 
     res.json({
       ...trip.rows[0],
       tasks: tasks.rows,
       packingItems: packing.rows,
+      medicineItems: medicine.rows,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -143,6 +148,42 @@ router.put('/:id/packing/:itemId', async (req, res) => {
 router.delete('/:id/packing/:itemId', async (req, res) => {
   try {
     await pool.query('DELETE FROM packing_items WHERE id=$1 AND trip_id=$2', [req.params.itemId, req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- MEDICINE ITEMS ---
+router.post('/:id/medicine', async (req, res) => {
+  const { text } = req.body;
+  try {
+    const result = await pool.query(
+      'INSERT INTO medicine_items (trip_id, text) VALUES ($1, $2) RETURNING *',
+      [req.params.id, text]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/:id/medicine/:itemId', async (req, res) => {
+  const { text, checked } = req.body;
+  try {
+    const result = await pool.query(
+      'UPDATE medicine_items SET text=COALESCE($1,text), checked=COALESCE($2,checked) WHERE id=$3 AND trip_id=$4 RETURNING *',
+      [text, checked, req.params.itemId, req.params.id]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/:id/medicine/:itemId', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM medicine_items WHERE id=$1 AND trip_id=$2', [req.params.itemId, req.params.id]);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

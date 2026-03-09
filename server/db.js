@@ -46,6 +46,14 @@ async function initDB() {
 
       CREATE UNIQUE INDEX IF NOT EXISTS travel_info_cache_dest_country
         ON travel_info_cache(destination, country);
+
+      CREATE TABLE IF NOT EXISTS medicine_items (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        trip_id UUID NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+        text TEXT NOT NULL,
+        checked BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
     `);
     console.log('Database initialized successfully');
   } finally {
