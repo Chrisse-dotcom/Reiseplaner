@@ -73,8 +73,13 @@ export default function StartScreen({ onSelectTrip, onNewTrip }) {
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <span style={{ fontSize: '1.5rem' }}>📍</span>
-                  <h3>{trip.destination}</h3>
+                  <h3>{trip.country || trip.destination}</h3>
                 </div>
+                {trip.destination && trip.destination !== trip.country && (
+                  <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginLeft: 36, marginBottom: 2 }}>
+                    {trip.destination}
+                  </p>
+                )}
                 {(trip.start_date || trip.end_date) && (
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginLeft: 36 }}>
                     {trip.start_date && formatDate(trip.start_date)}
