@@ -64,6 +64,22 @@ async function initDB() {
         dest_y FLOAT,
         created_at TIMESTAMP DEFAULT NOW()
       );
+
+      CREATE TABLE IF NOT EXISTS flights (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        trip_id UUID NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+        label VARCHAR(50) NOT NULL DEFAULT 'Flug',
+        flight_number VARCHAR(20),
+        departure_airport VARCHAR(10),
+        arrival_airport VARCHAR(10),
+        flight_date VARCHAR(10),
+        departure_time VARCHAR(5),
+        arrival_time VARCHAR(5),
+        gate VARCHAR(20),
+        terminal VARCHAR(30),
+        sort_order INT DEFAULT 0,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
     `);
     console.log('Database initialized successfully');
   } finally {
