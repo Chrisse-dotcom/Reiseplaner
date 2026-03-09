@@ -25,14 +25,13 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-// Start server after DB init
-initDB()
-  .then(() => {
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on port ${PORT}`);
+// Start server immediately so healthcheck passes, then init DB
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
+  initDB()
+    .then(() => console.log('Database ready'))
+    .catch((err) => {
+      console.error('Failed to initialize database:', err);
+      process.exit(1);
     });
-  })
-  .catch((err) => {
-    console.error('Failed to initialize database:', err);
-    process.exit(1);
-  });
+});
