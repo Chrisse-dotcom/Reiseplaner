@@ -64,6 +64,9 @@ export default function Dashboard({ tripId, onBack }) {
   const [showCopyModal, setShowCopyModal] = useState(false);
   const [showFlightModal, setShowFlightModal] = useState(false);
   const [geoData, setGeoData] = useState(null);
+  const [flightStatus, setFlightStatus] = useState(null);
+  const [flightStatusLoading, setFlightStatusLoading] = useState(false);
+  const [flightStatusError, setFlightStatusError] = useState(null);
 
   useEffect(() => { loadTrip(); }, [tripId]);
 
@@ -81,6 +84,26 @@ export default function Dashboard({ tripId, onBack }) {
       .then(setTrip)
       .catch(console.error)
       .finally(() => setLoading(false));
+  };
+
+  const fetchFlightStatus = async (flight) => {
+    if (!flight || !flight.flight_number) return;
+    setFlightStatusLoading(true);
+    setFlightStatusError(null);
+    try {
+      const res = await fetch('/api/flight-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ flightNumber: flight.flight_number, date: flight.flight_date }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setFlightStatus(data);
+    } catch (err) {
+      setFlightStatusError(err.message);
+    } finally {
+      setFlightStatusLoading(false);
+    }
   };
 
   if (loading) {
@@ -184,7 +207,7 @@ export default function Dashboard({ tripId, onBack }) {
               color: 'white',
             }}
           >
-            {/* Airport row */}
+            {/* Airport row + refresh button */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
               <span style={{ fontSize: '1.4rem', fontWeight: 800, minWidth: 48, letterSpacing: '0.05em' }}>
                 {nextFlight.departure_airport || '–––'}
@@ -197,6 +220,30 @@ export default function Dashboard({ tripId, onBack }) {
               <span style={{ fontSize: '1.4rem', fontWeight: 800, minWidth: 48, textAlign: 'right', letterSpacing: '0.05em' }}>
                 {nextFlight.arrival_airport || '–––'}
               </span>
+              {nextFlight.flight_number && (
+                <button
+                  onClick={e => { e.stopPropagation(); fetchFlightStatus(nextFlight); }}
+                  disabled={flightStatusLoading}
+                  title="Live-Status abrufen"
+                  style={{
+                    background: 'rgba(255,255,255,0.12)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    borderRadius: 8,
+                    color: 'white',
+                    cursor: flightStatusLoading ? 'not-allowed' : 'pointer',
+                    fontSize: '0.85rem',
+                    padding: '4px 8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    flexShrink: 0,
+                  }}
+                >
+                  {flightStatusLoading
+                    ? <span style={{ display: 'inline-block', width: 12, height: 12, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                    : '🔄'}
+                </button>
+              )}
             </div>
 
             {/* Details row */}
@@ -209,6 +256,49 @@ export default function Dashboard({ tripId, onBack }) {
               {nextFlight.gate     && <span>🚪 Gate {nextFlight.gate}</span>}
               {nextFlight.terminal && <span>🏢 {nextFlight.terminal}</span>}
             </div>
+
+            {/* Live status result */}
+            {flightStatus && (
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.12)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{
+                    background: flightStatus.status === 'on_time' ? '#16a34a'
+                      : flightStatus.status === 'delayed' ? '#d97706'
+                      : flightStatus.status === 'cancelled' ? '#dc2626'
+                      : 'rgba(255,255,255,0.2)',
+                    color: 'white',
+                    borderRadius: 99,
+                    padding: '2px 10px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.03em',
+                  }}>
+                    {flightStatus.status === 'on_time' ? '✅ Pünktlich'
+                      : flightStatus.status === 'delayed' ? `⚠️ Verspätet${flightStatus.delay_minutes ? ` +${flightStatus.delay_minutes} min` : ''}`
+                      : flightStatus.status === 'cancelled' ? '❌ Annulliert'
+                      : '❓ Unbekannt'}
+                  </span>
+                  {(flightStatus.actual_departure || flightStatus.actual_arrival) && (
+                    <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.7)' }}>
+                      🕐 {flightStatus.actual_departure || '?'}{flightStatus.actual_arrival ? ` → ${flightStatus.actual_arrival}` : ''}
+                    </span>
+                  )}
+                  {flightStatus.gate && <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.7)' }}>🚪 Gate {flightStatus.gate}</span>}
+                  {flightStatus.terminal && <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.7)' }}>🏢 {flightStatus.terminal}</span>}
+                </div>
+                {flightStatus.note && (
+                  <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.6)', marginTop: 4 }}>{flightStatus.note}</div>
+                )}
+                {flightStatus.checked_at && (
+                  <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginTop: 4 }}>
+                    Abgefragt: {new Date(flightStatus.checked_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
+                  </div>
+                )}
+              </div>
+            )}
+            {flightStatusError && (
+              <div style={{ marginTop: 8, fontSize: '0.72rem', color: '#fca5a5' }}>⚠️ {flightStatusError}</div>
+            )}
 
             <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.45)', marginTop: 6 }}>
               {nextFlight.label}{hasFlights && (trip.flights || []).length > 1 ? ` · ${(trip.flights || []).length} Flüge gesamt` : ''}

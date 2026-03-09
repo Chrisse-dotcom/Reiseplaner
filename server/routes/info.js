@@ -229,6 +229,64 @@ Berücksichtige typische Risiken des Reiselands: Klima, häufige Erkrankungen, H
   }
 });
 
+// ── Flight status (live) via web search ─────────────────────────────────────
+
+router.post('/flight-status', async (req, res) => {
+  const { flightNumber, date } = req.body;
+  if (!flightNumber) return res.status(400).json({ error: 'Flugnummer erforderlich' });
+
+  const prompt = `Suche den aktuellen Live-Status für Flug ${flightNumber.trim()}${date ? ' am ' + date : ' heute'}.
+Antworte NUR mit einem JSON-Objekt (kein Markdown, keine Erklärung):
+{"status":"on_time|delayed|cancelled|unknown","delay_minutes":null,"actual_departure":null,"actual_arrival":null,"gate":null,"terminal":null,"note":null}
+Werte: status = on_time / delayed / cancelled / unknown. delay_minutes = Verspätung in Minuten (Zahl oder null). actual_departure/actual_arrival = tatsächliche Zeiten HH:MM oder null. gate/terminal = aktuelle Werte oder null. note = kurzer Hinweis auf Deutsch oder null. null für unbekannte Felder.`;
+
+  const tools = [{ type: 'web_search_20260209', name: 'web_search' }];
+  let messages = [{ role: 'user', content: prompt }];
+
+  try {
+    let response = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1024,
+      tools,
+      messages,
+    });
+
+    let continuations = 0;
+    while (response.stop_reason === 'pause_turn' && continuations < 3) {
+      continuations++;
+      messages = [
+        { role: 'user', content: prompt },
+        { role: 'assistant', content: response.content },
+      ];
+      response = await client.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1024,
+        tools,
+        messages,
+      });
+    }
+
+    const text = response.content
+      .filter(b => b.type === 'text')
+      .map(b => b.text)
+      .join('');
+
+    const match = text.match(/\{[\s\S]*?\}/);
+    if (match) {
+      try {
+        const data = JSON.parse(match[0]);
+        data.checked_at = new Date().toISOString();
+        return res.json(data);
+      } catch (_) { /* fall through */ }
+    }
+
+    res.status(422).json({ error: 'Kein Flusstatus gefunden' });
+  } catch (err) {
+    console.error('Flight status error:', err);
+    res.status(500).json({ error: 'Statusabfrage fehlgeschlagen: ' + err.message });
+  }
+});
+
 // ── Flight lookup via web search ────────────────────────────────────────────
 
 router.post('/flight-lookup', async (req, res) => {
