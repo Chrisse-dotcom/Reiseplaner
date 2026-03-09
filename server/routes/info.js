@@ -229,12 +229,54 @@ Berücksichtige typische Risiken des Reiselands: Klima, häufige Erkrankungen, H
   }
 });
 
-// ── Flight status (live) via web search ─────────────────────────────────────
+// ── Flight status (live) ─────────────────────────────────────────────────────
+// Uses AviationStack API if AVIATIONSTACK_API_KEY is set, otherwise Claude web search
 
-router.post('/flight-status', async (req, res) => {
-  const { flightNumber, date } = req.body;
-  if (!flightNumber) return res.status(400).json({ error: 'Flugnummer erforderlich' });
+function toHHMM(isoString) {
+  if (!isoString) return null;
+  try {
+    const d = new Date(isoString);
+    return d.toTimeString().slice(0, 5);
+  } catch (_) { return null; }
+}
 
+async function fetchStatusViaAviationStack(flightNumber, date) {
+  const key = process.env.AVIATIONSTACK_API_KEY;
+  const params = new URLSearchParams({ access_key: key, flight_iata: flightNumber.trim() });
+  if (date) params.append('flight_date', date);
+  const url = `http://api.aviationstack.com/v1/flights?${params}`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`AviationStack HTTP ${resp.status}`);
+  const json = await resp.json();
+  if (json.error) throw new Error(json.error.info || 'AviationStack Fehler');
+  const flight = (json.data || [])[0];
+  if (!flight) return null;
+
+  const rawStatus = flight.flight_status; // scheduled|active|landed|cancelled|incident|diverted
+  const depDelay = flight.departure?.delay || 0;
+  let status;
+  if (rawStatus === 'cancelled') status = 'cancelled';
+  else if (rawStatus === 'landed' || rawStatus === 'active' || rawStatus === 'scheduled') {
+    status = depDelay >= 5 ? 'delayed' : 'on_time';
+  } else {
+    status = 'unknown';
+  }
+
+  const noteMap = { landed: 'Gelandet', active: 'Im Flug', scheduled: 'Planmäßig', diverted: 'Umgeleitet', incident: 'Vorfall gemeldet' };
+
+  return {
+    status,
+    delay_minutes: depDelay >= 5 ? depDelay : null,
+    actual_departure: toHHMM(flight.departure?.actual || flight.departure?.estimated),
+    actual_arrival: toHHMM(flight.arrival?.actual || flight.arrival?.estimated),
+    gate: flight.departure?.gate || null,
+    terminal: flight.departure?.terminal || null,
+    note: noteMap[rawStatus] || null,
+    checked_at: new Date().toISOString(),
+  };
+}
+
+async function fetchStatusViaClaudeSearch(flightNumber, date) {
   const prompt = `Suche den aktuellen Live-Status für Flug ${flightNumber.trim()}${date ? ' am ' + date : ' heute'}.
 Antworte NUR mit einem JSON-Objekt (kein Markdown, keine Erklärung):
 {"status":"on_time|delayed|cancelled|unknown","delay_minutes":null,"actual_departure":null,"actual_arrival":null,"gate":null,"terminal":null,"note":null}
@@ -242,45 +284,35 @@ Werte: status = on_time / delayed / cancelled / unknown. delay_minutes = Verspä
 
   const tools = [{ type: 'web_search_20260209', name: 'web_search' }];
   let messages = [{ role: 'user', content: prompt }];
+  let response = await client.messages.create({ model: 'claude-sonnet-4-6', max_tokens: 1024, tools, messages });
+  let continuations = 0;
+  while (response.stop_reason === 'pause_turn' && continuations < 3) {
+    continuations++;
+    messages = [{ role: 'user', content: prompt }, { role: 'assistant', content: response.content }];
+    response = await client.messages.create({ model: 'claude-sonnet-4-6', max_tokens: 1024, tools, messages });
+  }
+  const text = response.content.filter(b => b.type === 'text').map(b => b.text).join('');
+  const match = text.match(/\{[\s\S]*?\}/);
+  if (!match) return null;
+  const data = JSON.parse(match[0]);
+  data.checked_at = new Date().toISOString();
+  return data;
+}
+
+router.post('/flight-status', async (req, res) => {
+  const { flightNumber, date } = req.body;
+  if (!flightNumber) return res.status(400).json({ error: 'Flugnummer erforderlich' });
 
   try {
-    let response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
-      tools,
-      messages,
-    });
-
-    let continuations = 0;
-    while (response.stop_reason === 'pause_turn' && continuations < 3) {
-      continuations++;
-      messages = [
-        { role: 'user', content: prompt },
-        { role: 'assistant', content: response.content },
-      ];
-      response = await client.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1024,
-        tools,
-        messages,
-      });
+    let result = null;
+    if (process.env.AVIATIONSTACK_API_KEY) {
+      result = await fetchStatusViaAviationStack(flightNumber, date);
     }
-
-    const text = response.content
-      .filter(b => b.type === 'text')
-      .map(b => b.text)
-      .join('');
-
-    const match = text.match(/\{[\s\S]*?\}/);
-    if (match) {
-      try {
-        const data = JSON.parse(match[0]);
-        data.checked_at = new Date().toISOString();
-        return res.json(data);
-      } catch (_) { /* fall through */ }
+    if (!result) {
+      result = await fetchStatusViaClaudeSearch(flightNumber, date);
     }
-
-    res.status(422).json({ error: 'Kein Flusstatus gefunden' });
+    if (!result) return res.status(422).json({ error: 'Kein Flugstatus gefunden' });
+    res.json(result);
   } catch (err) {
     console.error('Flight status error:', err);
     res.status(500).json({ error: 'Statusabfrage fehlgeschlagen: ' + err.message });
