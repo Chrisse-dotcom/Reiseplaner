@@ -32,12 +32,17 @@ router.get('/:id', async (req, res) => {
       'SELECT * FROM medicine_items WHERE trip_id = $1 ORDER BY created_at ASC',
       [req.params.id]
     );
+    const flightsRes = await pool.query(
+      'SELECT * FROM flights WHERE trip_id = $1 ORDER BY sort_order ASC',
+      [req.params.id]
+    );
 
     res.json({
       ...trip.rows[0],
       tasks: tasks.rows,
       packingItems: packing.rows,
       medicineItems: medicine.rows,
+      flights: flightsRes.rows,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -240,6 +245,51 @@ router.post('/:id/copy-from/:sourceId', async (req, res) => {
 
     await client.query('COMMIT');
     res.json({ success: true });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// --- FLIGHTS ---
+// Replace all flights for a trip (atomic save)
+router.put('/:id/flights', async (req, res) => {
+  const { flights } = req.body;
+  const tripId = req.params.id;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('DELETE FROM flights WHERE trip_id = $1', [tripId]);
+    for (let i = 0; i < flights.length; i++) {
+      const f = flights[i];
+      await client.query(
+        `INSERT INTO flights
+           (trip_id, label, flight_number, departure_airport, arrival_airport,
+            flight_date, departure_time, arrival_time, gate, terminal, sort_order)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+        [
+          tripId,
+          f.label || 'Flug',
+          f.flight_number || null,
+          f.departure_airport ? f.departure_airport.toUpperCase() : null,
+          f.arrival_airport  ? f.arrival_airport.toUpperCase()  : null,
+          f.flight_date      || null,
+          f.departure_time   || null,
+          f.arrival_time     || null,
+          f.gate             || null,
+          f.terminal         || null,
+          i,
+        ]
+      );
+    }
+    await client.query('COMMIT');
+    const result = await pool.query(
+      'SELECT * FROM flights WHERE trip_id = $1 ORDER BY sort_order ASC',
+      [tripId]
+    );
+    res.json(result.rows);
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
