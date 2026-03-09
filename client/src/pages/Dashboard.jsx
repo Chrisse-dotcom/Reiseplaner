@@ -180,26 +180,28 @@ export default function Dashboard({ tripId, onBack }) {
         )}
 
         {/* Action Buttons */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
+        <div style={{ display: 'flex', gap: 20, justifyContent: 'center', marginBottom: 24 }}>
           <button
             className="btn"
             style={{
               background: 'linear-gradient(135deg, #f0f9ff, #dbeafe)',
               color: '#1e40af',
               border: '1px solid #bfdbfe',
-              borderRadius: 14,
-              padding: '14px 10px',
-              fontSize: '0.9rem',
-              fontWeight: 600,
+              borderRadius: '50%',
+              width: 72,
+              height: 72,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: 6,
+              justifyContent: 'center',
+              gap: 2,
+              padding: 0,
+              boxShadow: '0 2px 8px rgba(59,130,246,0.15)',
             }}
             onClick={() => setShowInfoModal(true)}
           >
-            <span style={{ fontSize: '1.8rem' }}>🌍</span>
-            Reiseinfos
+            <span style={{ fontSize: '1.6rem', lineHeight: 1 }}>🌍</span>
+            <span style={{ fontSize: '0.6rem', fontWeight: 600 }}>Reiseinfos</span>
           </button>
           <button
             className="btn"
@@ -207,19 +209,21 @@ export default function Dashboard({ tripId, onBack }) {
               background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
               color: '#065f46',
               border: '1px solid #a7f3d0',
-              borderRadius: 14,
-              padding: '14px 10px',
-              fontSize: '0.9rem',
-              fontWeight: 600,
+              borderRadius: '50%',
+              width: 72,
+              height: 72,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: 6,
+              justifyContent: 'center',
+              gap: 2,
+              padding: 0,
+              boxShadow: '0 2px 8px rgba(16,185,129,0.15)',
             }}
             onClick={() => setShowCopyModal(true)}
           >
-            <span style={{ fontSize: '1.8rem' }}>📋</span>
-            Liste kopieren
+            <span style={{ fontSize: '1.6rem', lineHeight: 1 }}>📋</span>
+            <span style={{ fontSize: '0.6rem', fontWeight: 600 }}>Kopieren</span>
           </button>
         </div>
 
