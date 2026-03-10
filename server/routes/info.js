@@ -242,14 +242,16 @@ function toHHMM(isoString) {
 
 async function fetchStatusViaAviationStack(flightNumber, date) {
   const key = process.env.AVIATIONSTACK_API_KEY;
-  const iata = flightNumber.trim().replace(/\s+/g, ''); // 'LH 765' → 'LH765'
+  const iata = flightNumber.trim().replace(/\s+/g, '');
   const params = new URLSearchParams({ access_key: key, flight_iata: iata });
   if (date) params.append('flight_date', date);
   const url = `http://api.aviationstack.com/v1/flights?${params}`;
+  console.log('[AviationStack status] URL:', url.replace(key, '***'));
   const resp = await fetch(url);
-  if (!resp.ok) throw new Error(`AviationStack HTTP ${resp.status}`);
   const json = await resp.json();
-  if (json.error) throw new Error(json.error.info || 'AviationStack Fehler');
+  console.log('[AviationStack status] response:', JSON.stringify(json).slice(0, 500));
+  if (json.error) throw new Error(`AviationStack: ${json.error.code} – ${json.error.info}`);
+  if (!resp.ok) throw new Error(`AviationStack HTTP ${resp.status}`);
   const flight = (json.data || [])[0];
   if (!flight) return null;
 
@@ -329,14 +331,15 @@ router.post('/flight-status', async (req, res) => {
 
 async function fetchLookupViaAviationStack(flightNumber, date) {
   const key = process.env.AVIATIONSTACK_API_KEY;
-  const iata = flightNumber.trim().replace(/\s+/g, ''); // 'LH 765' → 'LH765'
+  const iata = flightNumber.trim().replace(/\s+/g, '');
   const params = new URLSearchParams({ access_key: key, flight_iata: iata });
   if (date) params.append('flight_date', date);
   const url = `http://api.aviationstack.com/v1/flights?${params}`;
+  console.log('[AviationStack lookup] URL:', url.replace(key, '***'));
   const resp = await fetch(url);
-  if (!resp.ok) throw new Error(`AviationStack HTTP ${resp.status}`);
   const json = await resp.json();
-  if (json.error) throw new Error(json.error.info || 'AviationStack Fehler');
+  console.log('[AviationStack lookup] response:', JSON.stringify(json).slice(0, 500));
+  if (json.error) throw new Error(`AviationStack: ${json.error.code} – ${json.error.info}`);
   const flight = (json.data || [])[0];
   if (!flight) return null;
   return {
@@ -394,6 +397,33 @@ router.post('/flight-lookup', async (req, res) => {
   } catch (err) {
     console.error('Flight lookup error:', err);
     res.status(500).json({ error: 'Suche fehlgeschlagen: ' + err.message });
+  }
+});
+
+// ── AviationStack diagnostics ────────────────────────────────────────────────
+// GET /api/aviationstack-test?flight=LH765&date=2026-03-10
+
+router.get('/aviationstack-test', async (req, res) => {
+  const key = process.env.AVIATIONSTACK_API_KEY;
+  if (!key) {
+    return res.json({ ok: false, reason: 'AVIATIONSTACK_API_KEY ist nicht gesetzt (Railway → Variables)' });
+  }
+
+  const flight = (req.query.flight || 'LH1').replace(/\s+/g, '');
+  const params = new URLSearchParams({ access_key: key, flight_iata: flight });
+  if (req.query.date) params.append('flight_date', req.query.date);
+  const url = `http://api.aviationstack.com/v1/flights?${params}`;
+
+  try {
+    const resp = await fetch(url);
+    const json = await resp.json();
+    if (json.error) {
+      return res.json({ ok: false, reason: `AviationStack Fehler: ${json.error.code} – ${json.error.info}`, raw: json.error });
+    }
+    const count = (json.data || []).length;
+    return res.json({ ok: true, key_set: true, results: count, first: json.data?.[0] || null });
+  } catch (err) {
+    return res.json({ ok: false, reason: 'Netzwerkfehler: ' + err.message });
   }
 });
 
