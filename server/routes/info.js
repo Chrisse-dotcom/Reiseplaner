@@ -413,4 +413,42 @@ router.get('/aerodatabox-test', async (req, res) => {
   }
 });
 
+// ── Live Wechselkurse ──────────────────────────────────────────────────────────
+// GET /api/currency-rates?base=THB
+// Uses fawazahmed0 free currency API (170+ currencies, no API key)
+
+router.get('/currency-rates', async (req, res) => {
+  const { base } = req.query;
+  if (!base) return res.status(400).json({ error: 'base currency required' });
+
+  const code = base.toLowerCase();
+  const urls = [
+    `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/${code}.json`,
+    `https://latest.currency-api.pages.dev/v1/currencies/${code}.json`,
+  ];
+
+  let lastErr;
+  for (const url of urls) {
+    try {
+      const resp = await fetch(url, { signal: AbortSignal.timeout(6000) });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+      const rates = data[code];
+      if (!rates) throw new Error('Leere Antwort der Währungs-API');
+      return res.json({
+        base: base.toUpperCase(),
+        date: data.date,
+        rates: {
+          EUR: rates['eur'] ?? null,
+          USD: rates['usd'] ?? null,
+        },
+      });
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  console.error('currency-rates error:', lastErr?.message);
+  res.status(502).json({ error: 'Wechselkurs nicht abrufbar: ' + (lastErr?.message || 'Unbekannter Fehler') });
+});
+
 module.exports = router;

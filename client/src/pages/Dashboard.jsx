@@ -5,6 +5,7 @@ import MedicineList from '../components/MedicineList';
 import TravelInfoModal from './TravelInfoModal';
 import CopyChecklistModal from './CopyChecklistModal';
 import FlightModal from './FlightModal';
+import CurrencyModal from './CurrencyModal';
 
 const API = '/api/trips';
 
@@ -62,7 +63,8 @@ export default function Dashboard({ tripId, onBack }) {
   const [activeTab, setActiveTab] = useState('tasks');
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showCopyModal, setShowCopyModal] = useState(false);
-  const [showFlightModal, setShowFlightModal] = useState(false);
+  const [showFlightModal,   setShowFlightModal]   = useState(false);
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [geoData, setGeoData] = useState(null);
   const [flightStatus, setFlightStatus] = useState(null);
   const [flightStatusLoading, setFlightStatusLoading] = useState(false);
@@ -374,6 +376,23 @@ export default function Dashboard({ tripId, onBack }) {
             </button>
             <span style={{ fontSize: '0.62rem', fontWeight: 600, color: '#475569' }}>Kopieren</span>
           </div>
+
+          {/* Währungsrechner */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            <button
+              className="btn"
+              style={roundBtn({
+                background: 'linear-gradient(135deg, #fdf4ff, #ede9fe)',
+                color: '#6d28d9',
+                border: '1px solid #ddd6fe',
+                boxShadow: '0 2px 8px rgba(139,92,246,0.15)',
+              })}
+              onClick={() => setShowCurrencyModal(true)}
+            >
+              <span style={{ fontSize: '1.6rem', lineHeight: 1 }}>💱</span>
+            </button>
+            <span style={{ fontSize: '0.62rem', fontWeight: 600, color: '#475569' }}>Währung</span>
+          </div>
         </div>
 
         {/* ── Tab Bar ── */}
@@ -425,6 +444,9 @@ export default function Dashboard({ tripId, onBack }) {
           onClose={() => setShowFlightModal(false)}
           onSaved={flights => setTrip({ ...trip, flights })}
         />
+      )}
+      {showCurrencyModal && (
+        <CurrencyModal trip={trip} onClose={() => setShowCurrencyModal(false)} />
       )}
     </div>
   );
