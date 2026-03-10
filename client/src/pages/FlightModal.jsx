@@ -1,5 +1,10 @@
 import { useState } from 'react';
 
+function toDateInput(val) {
+  if (!val) return '';
+  return String(val).slice(0, 10); // '2024-03-15T00:00:00Z' → '2024-03-15'
+}
+
 function emptyFlight(label, date = '') {
   return { label, flight_number: '', departure_airport: '', arrival_airport: '', flight_date: date, departure_time: '', arrival_time: '', gate: '', terminal: '' };
 }
@@ -140,8 +145,8 @@ export default function FlightModal({ trip, onClose, onSaved }) {
       }));
     }
     return [
-      emptyFlight('Hinflug',  trip.start_date || ''),
-      emptyFlight('Rückflug', trip.end_date   || ''),
+      emptyFlight('Hinflug',  toDateInput(trip.start_date)),
+      emptyFlight('Rückflug', toDateInput(trip.end_date)),
     ];
   });
 

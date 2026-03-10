@@ -242,7 +242,8 @@ function toHHMM(isoString) {
 
 async function fetchStatusViaAviationStack(flightNumber, date) {
   const key = process.env.AVIATIONSTACK_API_KEY;
-  const params = new URLSearchParams({ access_key: key, flight_iata: flightNumber.trim() });
+  const iata = flightNumber.trim().replace(/\s+/g, ''); // 'LH 765' → 'LH765'
+  const params = new URLSearchParams({ access_key: key, flight_iata: iata });
   if (date) params.append('flight_date', date);
   const url = `http://api.aviationstack.com/v1/flights?${params}`;
   const resp = await fetch(url);
@@ -306,7 +307,11 @@ router.post('/flight-status', async (req, res) => {
   try {
     let result = null;
     if (process.env.AVIATIONSTACK_API_KEY) {
-      result = await fetchStatusViaAviationStack(flightNumber, date);
+      try {
+        result = await fetchStatusViaAviationStack(flightNumber, date);
+      } catch (apiErr) {
+        console.warn('AviationStack status failed, falling back to web search:', apiErr.message);
+      }
     }
     if (!result) {
       result = await fetchStatusViaClaudeSearch(flightNumber, date);
@@ -324,7 +329,8 @@ router.post('/flight-status', async (req, res) => {
 
 async function fetchLookupViaAviationStack(flightNumber, date) {
   const key = process.env.AVIATIONSTACK_API_KEY;
-  const params = new URLSearchParams({ access_key: key, flight_iata: flightNumber.trim() });
+  const iata = flightNumber.trim().replace(/\s+/g, ''); // 'LH 765' → 'LH765'
+  const params = new URLSearchParams({ access_key: key, flight_iata: iata });
   if (date) params.append('flight_date', date);
   const url = `http://api.aviationstack.com/v1/flights?${params}`;
   const resp = await fetch(url);
@@ -374,7 +380,11 @@ router.post('/flight-lookup', async (req, res) => {
   try {
     let result = null;
     if (process.env.AVIATIONSTACK_API_KEY) {
-      result = await fetchLookupViaAviationStack(flightNumber, date);
+      try {
+        result = await fetchLookupViaAviationStack(flightNumber, date);
+      } catch (apiErr) {
+        console.warn('AviationStack lookup failed, falling back to web search:', apiErr.message);
+      }
     }
     if (!result) {
       result = await fetchLookupViaClaudeSearch(flightNumber, date);
