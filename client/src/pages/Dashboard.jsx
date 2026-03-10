@@ -42,6 +42,75 @@ function getNextFlight(flights) {
   }) || sorted[sorted.length - 1];
 }
 
+const COUNTRY_TIMEZONE = {
+  Thailand: 'Asia/Bangkok', Japan: 'Asia/Tokyo',
+  USA: 'America/New_York', 'Vereinigte Staaten': 'America/New_York',
+  Italy: 'Europe/Rome', Italien: 'Europe/Rome',
+  Spain: 'Europe/Madrid', Spanien: 'Europe/Madrid',
+  Greece: 'Europe/Athens', Griechenland: 'Europe/Athens',
+  Turkey: 'Europe/Istanbul', Türkei: 'Europe/Istanbul',
+  Morocco: 'Africa/Casablanca', Marokko: 'Africa/Casablanca',
+  Mexico: 'America/Mexico_City', Mexiko: 'America/Mexico_City',
+  Australia: 'Australia/Sydney', Australien: 'Australia/Sydney',
+  Portugal: 'Europe/Lisbon',
+  France: 'Europe/Paris', Frankreich: 'Europe/Paris',
+  Vietnam: 'Asia/Ho_Chi_Minh',
+  Indonesia: 'Asia/Jakarta', Indonesien: 'Asia/Jakarta',
+  Iceland: 'Atlantic/Reykjavik', Island: 'Atlantic/Reykjavik',
+  Croatia: 'Europe/Zagreb', Kroatien: 'Europe/Zagreb',
+  Peru: 'America/Lima',
+  Canada: 'America/Toronto', Kanada: 'America/Toronto',
+  Egypt: 'Africa/Cairo', Ägypten: 'Africa/Cairo',
+  India: 'Asia/Kolkata', Indien: 'Asia/Kolkata',
+  'United Kingdom': 'Europe/London', Großbritannien: 'Europe/London',
+  Switzerland: 'Europe/Zurich', Schweiz: 'Europe/Zurich',
+  Norway: 'Europe/Oslo', Norwegen: 'Europe/Oslo',
+  Sweden: 'Europe/Stockholm', Schweden: 'Europe/Stockholm',
+  Denmark: 'Europe/Copenhagen', Dänemark: 'Europe/Copenhagen',
+  'Czech Republic': 'Europe/Prague', Tschechien: 'Europe/Prague',
+  Poland: 'Europe/Warsaw', Polen: 'Europe/Warsaw',
+  Hungary: 'Europe/Budapest', Ungarn: 'Europe/Budapest',
+  Romania: 'Europe/Bucharest', Rumänien: 'Europe/Bucharest',
+  Bulgaria: 'Europe/Sofia', Bulgarien: 'Europe/Sofia',
+  Austria: 'Europe/Vienna', Österreich: 'Europe/Vienna',
+  Germany: 'Europe/Berlin', Deutschland: 'Europe/Berlin',
+  Netherlands: 'Europe/Amsterdam', Niederlande: 'Europe/Amsterdam',
+  Belgium: 'Europe/Brussels', Belgien: 'Europe/Brussels',
+  Singapore: 'Asia/Singapore', Singapur: 'Asia/Singapore',
+  Malaysia: 'Asia/Kuala_Lumpur',
+  'South Korea': 'Asia/Seoul', Südkorea: 'Asia/Seoul',
+  China: 'Asia/Shanghai',
+  Philippines: 'Asia/Manila', Philippinen: 'Asia/Manila',
+  'Sri Lanka': 'Asia/Colombo',
+  Cambodia: 'Asia/Phnom_Penh', Kambodscha: 'Asia/Phnom_Penh',
+  Nepal: 'Asia/Kathmandu',
+  'Hong Kong': 'Asia/Hong_Kong', Hongkong: 'Asia/Hong_Kong',
+  Taiwan: 'Asia/Taipei',
+  'New Zealand': 'Pacific/Auckland', Neuseeland: 'Pacific/Auckland',
+  Brazil: 'America/Sao_Paulo', Brasilien: 'America/Sao_Paulo',
+  Argentina: 'America/Argentina/Buenos_Aires', Argentinien: 'America/Argentina/Buenos_Aires',
+  Colombia: 'America/Bogota', Kolumbien: 'America/Bogota',
+  Chile: 'America/Santiago',
+  'Dominican Republic': 'America/Santo_Domingo', 'Dominikanische Republik': 'America/Santo_Domingo',
+  Cuba: 'America/Havana', Kuba: 'America/Havana',
+  UAE: 'Asia/Dubai', 'Vereinigte Arabische Emirate': 'Asia/Dubai', Dubai: 'Asia/Dubai',
+  Israel: 'Asia/Jerusalem',
+  Jordan: 'Asia/Amman', Jordanien: 'Asia/Amman',
+  'South Africa': 'Africa/Johannesburg', Südafrika: 'Africa/Johannesburg',
+  Kenya: 'Africa/Nairobi', Kenia: 'Africa/Nairobi',
+  Tanzania: 'Africa/Dar_es_Salaam', Tansania: 'Africa/Dar_es_Salaam',
+};
+
+function fmtTime(date, tz) {
+  return date.toLocaleTimeString('de-DE', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+function hourDiff(tz1, tz2, now) {
+  const t1 = new Date(now.toLocaleString('en-US', { timeZone: tz1 }));
+  const t2 = new Date(now.toLocaleString('en-US', { timeZone: tz2 }));
+  return Math.round((t2 - t1) / 3600000);
+}
+
 function roundBtn(style) {
   return {
     borderRadius: '50%',
@@ -65,6 +134,12 @@ export default function Dashboard({ tripId, onBack }) {
   const [showCopyModal, setShowCopyModal] = useState(false);
   const [showFlightModal,   setShowFlightModal]   = useState(false);
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
   const [geoData, setGeoData] = useState(null);
   const [flightStatus, setFlightStatus] = useState(null);
   const [flightStatusLoading, setFlightStatusLoading] = useState(false);
@@ -179,6 +254,41 @@ export default function Dashboard({ tripId, onBack }) {
             )}
           </div>
         )}
+
+        {/* ── Live-Uhrzeiten ── */}
+        {(() => {
+          const destTz = COUNTRY_TIMEZONE[trip.country] || COUNTRY_TIMEZONE[trip.destination];
+          const berlinTime = fmtTime(now, 'Europe/Berlin');
+          const destTime   = destTz ? fmtTime(now, destTz) : null;
+          const diff       = destTz ? hourDiff('Europe/Berlin', destTz, now) : null;
+          const diffStr    = diff != null && diff !== 0 ? (diff > 0 ? `+${diff}h` : `${diff}h`) : null;
+          const sameTime   = diff === 0;
+          return (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10, position: 'relative', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.15)', borderRadius: 99, padding: '4px 12px' }}>
+                <span style={{ fontSize: '0.9rem' }}>🇩🇪</span>
+                <span style={{ fontSize: '0.9rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.02em' }}>{berlinTime}</span>
+                <span style={{ fontSize: '0.72rem', opacity: 0.75 }}>Berlin</span>
+              </div>
+              {destTime && !sameTime && (
+                <>
+                  <span style={{ opacity: 0.5, fontSize: '0.8rem' }}>→</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.15)', borderRadius: 99, padding: '4px 12px' }}>
+                    <span style={{ fontSize: '0.9rem' }}>🌍</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.02em' }}>{destTime}</span>
+                    <span style={{ fontSize: '0.72rem', opacity: 0.75 }}>{trip.country || trip.destination}</span>
+                    {diffStr && (
+                      <span style={{ fontSize: '0.68rem', background: 'rgba(255,255,255,0.2)', borderRadius: 99, padding: '1px 6px', fontWeight: 700 }}>{diffStr}</span>
+                    )}
+                  </div>
+                </>
+              )}
+              {destTime && sameTime && (
+                <span style={{ fontSize: '0.72rem', opacity: 0.6 }}>· gleiche Zeitzone</span>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       <div className="page" style={{ paddingTop: 16 }}>
