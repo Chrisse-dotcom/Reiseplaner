@@ -155,6 +155,7 @@ export default function FlightModal({ trip, onClose, onSaved }) {
   const [lookupLoading, setLookupLoading] = useState({}); // { [index]: bool }
   const [lookupLabel,   setLookupLabel]   = useState({}); // { [index]: string }
   const [lookupSuccess, setLookupSuccess] = useState({}); // { [index]: bool }
+  const [lookupSource,  setLookupSource]  = useState({}); // { [index]: 'aerodatabox'|'websearch' }
 
   const updateFlight = (index, field, val) =>
     setFlights(fs => fs.map((f, i) => i === index ? { ...f, [field]: val } : f));
@@ -203,8 +204,9 @@ export default function FlightModal({ trip, onClose, onSaved }) {
         gate:              data.gate != null       ? (data.gate     || f.gate)     : f.gate,
         terminal:          data.terminal != null   ? (data.terminal || f.terminal) : f.terminal,
       }));
+      setLookupSource(prev => ({ ...prev, [index]: data.source || null }));
       setLookupSuccess(prev => ({ ...prev, [index]: true }));
-      setTimeout(() => setLookupSuccess(prev => ({ ...prev, [index]: false })), 3000);
+      setTimeout(() => setLookupSuccess(prev => ({ ...prev, [index]: false })), 5000);
     } catch (err) {
       setError(`${flight.flight_number}: ${err.message}`);
     } finally {
@@ -252,8 +254,22 @@ export default function FlightModal({ trip, onClose, onSaved }) {
         {flights.map((flight, i) => (
           <div key={i}>
             {lookupSuccess[i] && (
-              <div style={{ background: '#f0fdf4', border: '1px solid #a7f3d0', borderRadius: 10, padding: '8px 12px', marginBottom: 8, fontSize: '0.82rem', color: '#065f46', display: 'flex', gap: 6 }}>
-                ✅ Flugdaten für {flight.flight_number} erfolgreich geladen
+              <div style={{ background: '#f0fdf4', border: '1px solid #a7f3d0', borderRadius: 10, padding: '8px 12px', marginBottom: 8, fontSize: '0.82rem', color: '#065f46', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>✅ Flugdaten für {flight.flight_number} erfolgreich geladen</span>
+                {lookupSource[i] && (
+                  <span style={{
+                    marginLeft: 'auto',
+                    fontSize: '0.72rem',
+                    background: lookupSource[i] === 'aerodatabox' ? '#dbeafe' : '#fef9c3',
+                    color:      lookupSource[i] === 'aerodatabox' ? '#1d4ed8' : '#854d0e',
+                    borderRadius: 99,
+                    padding: '2px 8px',
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {lookupSource[i] === 'aerodatabox' ? '📡 AeroDataBox' : '🔍 Websuche'}
+                  </span>
+                )}
               </div>
             )}
             <FlightCard
