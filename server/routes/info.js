@@ -319,57 +319,68 @@ router.post('/flight-status', async (req, res) => {
   }
 });
 
-// ── Flight lookup via web search ────────────────────────────────────────────
+// ── Flight lookup ────────────────────────────────────────────────────────────
+// Uses AviationStack API if AVIATIONSTACK_API_KEY is set, otherwise Claude web search
+
+async function fetchLookupViaAviationStack(flightNumber, date) {
+  const key = process.env.AVIATIONSTACK_API_KEY;
+  const params = new URLSearchParams({ access_key: key, flight_iata: flightNumber.trim() });
+  if (date) params.append('flight_date', date);
+  const url = `http://api.aviationstack.com/v1/flights?${params}`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`AviationStack HTTP ${resp.status}`);
+  const json = await resp.json();
+  if (json.error) throw new Error(json.error.info || 'AviationStack Fehler');
+  const flight = (json.data || [])[0];
+  if (!flight) return null;
+  return {
+    airline:           flight.airline?.name   || null,
+    departure_airport: flight.departure?.iata || null,
+    arrival_airport:   flight.arrival?.iata   || null,
+    departure_time:    toHHMM(flight.departure?.scheduled) || null,
+    arrival_time:      toHHMM(flight.arrival?.scheduled)   || null,
+    gate:              flight.departure?.gate     || null,
+    terminal:          flight.departure?.terminal || null,
+    source:            'aviationstack',
+  };
+}
+
+async function fetchLookupViaClaudeSearch(flightNumber, date) {
+  const prompt = `Suche aktuelle Flugdaten für Flug ${flightNumber.trim()}${date ? ' am ' + date : ''}.
+Antworte NUR mit einem JSON-Objekt (kein Markdown, keine Erklärung darum):
+{"airline":"Name der Fluggesellschaft","departure_airport":"IATA","arrival_airport":"IATA","departure_time":"HH:MM","arrival_time":"HH:MM","gate":null,"terminal":null}
+IATA = 3 Großbuchstaben. null für unbekannte Felder.`;
+  const tools = [{ type: 'web_search_20260209', name: 'web_search' }];
+  let messages = [{ role: 'user', content: prompt }];
+  let response = await client.messages.create({ model: 'claude-sonnet-4-6', max_tokens: 1024, tools, messages });
+  let continuations = 0;
+  while (response.stop_reason === 'pause_turn' && continuations < 3) {
+    continuations++;
+    messages = [{ role: 'user', content: prompt }, { role: 'assistant', content: response.content }];
+    response = await client.messages.create({ model: 'claude-sonnet-4-6', max_tokens: 1024, tools, messages });
+  }
+  const text = response.content.filter(b => b.type === 'text').map(b => b.text).join('');
+  const match = text.match(/\{[\s\S]*?\}/);
+  if (!match) return null;
+  const data = JSON.parse(match[0]);
+  data.source = 'websearch';
+  return data;
+}
 
 router.post('/flight-lookup', async (req, res) => {
   const { flightNumber, date } = req.body;
   if (!flightNumber) return res.status(400).json({ error: 'Flugnummer erforderlich' });
 
-  const prompt = `Suche aktuelle Flugdaten für Flug ${flightNumber.trim()}${date ? ' am ' + date : ''}.
-Antworte NUR mit einem JSON-Objekt (kein Markdown, keine Erklärung darum):
-{"airline":"Name der Fluggesellschaft","departure_airport":"IATA","arrival_airport":"IATA","departure_time":"HH:MM","arrival_time":"HH:MM","gate":null,"terminal":null}
-IATA = 3 Großbuchstaben. null für unbekannte Felder.`;
-
-  const tools = [{ type: 'web_search_20260209', name: 'web_search' }];
-  let messages = [{ role: 'user', content: prompt }];
-
   try {
-    let response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
-      tools,
-      messages,
-    });
-
-    // Server-side tool hit iteration limit → re-send to continue (max 3x)
-    let continuations = 0;
-    while (response.stop_reason === 'pause_turn' && continuations < 3) {
-      continuations++;
-      messages = [
-        { role: 'user', content: prompt },
-        { role: 'assistant', content: response.content },
-      ];
-      response = await client.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1024,
-        tools,
-        messages,
-      });
+    let result = null;
+    if (process.env.AVIATIONSTACK_API_KEY) {
+      result = await fetchLookupViaAviationStack(flightNumber, date);
     }
-
-    const text = response.content
-      .filter(b => b.type === 'text')
-      .map(b => b.text)
-      .join('');
-
-    const match = text.match(/\{[\s\S]*?\}/);
-    if (match) {
-      try {
-        return res.json(JSON.parse(match[0]));
-      } catch (_) { /* invalid JSON, fall through */ }
+    if (!result) {
+      result = await fetchLookupViaClaudeSearch(flightNumber, date);
     }
-
-    res.status(422).json({ error: 'Keine Flugdaten gefunden' });
+    if (!result) return res.status(422).json({ error: 'Keine Flugdaten gefunden' });
+    res.json(result);
   } catch (err) {
     console.error('Flight lookup error:', err);
     res.status(500).json({ error: 'Suche fehlgeschlagen: ' + err.message });

@@ -64,7 +64,7 @@ function FlightCard({ flight, index, total, onChange, onRemove, onLookup, lookin
           </button>
         </div>
         {lookingUp && (
-          <p style={{ fontSize: '0.75rem', color: '#3b82f6', marginTop: 4 }}>KI sucht Flugdaten im Netz…</p>
+          <p style={{ fontSize: '0.75rem', color: '#3b82f6', marginTop: 4 }}>Flugdaten werden von AviationStack abgerufen…</p>
         )}
       </div>
 
@@ -96,12 +96,12 @@ function FlightCard({ flight, index, total, onChange, onRemove, onLookup, lookin
       </div>
 
       {/* Times */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8, overflow: 'hidden' }}>
-        <div style={{ minWidth: 0 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        <div style={{ width: '45%' }}>
           <label style={labelStyle}>Abflugzeit</label>
           <input className="input" style={inputStyle} type="time" value={flight.departure_time} onChange={e => upd('departure_time', e.target.value)} />
         </div>
-        <div style={{ minWidth: 0 }}>
+        <div style={{ width: '45%' }}>
           <label style={labelStyle}>Ankunftzeit</label>
           <input className="input" style={inputStyle} type="time" value={flight.arrival_time} onChange={e => upd('arrival_time', e.target.value)} />
         </div>
