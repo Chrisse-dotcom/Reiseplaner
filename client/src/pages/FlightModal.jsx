@@ -177,7 +177,7 @@ export default function FlightModal({ trip, onClose, onSaved }) {
     if (!flight.flight_number.trim()) return;
 
     setLookupLoading(prev => ({ ...prev, [index]: true }));
-    setLookupLabel(prev => ({ ...prev, [index]: 'Flugdaten werden von AviationStack abgerufen…' }));
+    setLookupLabel(prev => ({ ...prev, [index]: 'Flugdaten werden von AeroDataBox abgerufen…' }));
     setLookupSuccess(prev => ({ ...prev, [index]: false }));
     setError(null);
 
