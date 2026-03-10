@@ -71,11 +71,13 @@ function FlightCard({ flight, index, total, onChange, onRemove, onLookup, lookin
       {/* Date */}
       <div style={{ marginBottom: 8 }}>
         <label style={labelStyle}>Datum</label>
-        <input className="input" style={inputStyle} type="date" value={flight.flight_date} onChange={e => upd('flight_date', e.target.value)} />
+        <div style={{ maxWidth: '60%' }}>
+          <input className="input" style={inputStyle} type="date" value={flight.flight_date} onChange={e => upd('flight_date', e.target.value)} />
+        </div>
       </div>
 
       {/* Airports */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 24px 1fr', gap: 6, alignItems: 'flex-end', marginBottom: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 24px 1fr', gap: 6, alignItems: 'flex-end', marginBottom: 8, overflow: 'hidden' }}>
         <div>
           <label style={labelStyle}>Abflug (IATA)</label>
           <input className="input" style={{ ...inputStyle, textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.1em' }}
@@ -94,12 +96,12 @@ function FlightCard({ flight, index, total, onChange, onRemove, onLookup, lookin
       </div>
 
       {/* Times */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
-        <div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8, overflow: 'hidden' }}>
+        <div style={{ minWidth: 0 }}>
           <label style={labelStyle}>Abflugzeit</label>
           <input className="input" style={inputStyle} type="time" value={flight.departure_time} onChange={e => upd('departure_time', e.target.value)} />
         </div>
-        <div>
+        <div style={{ minWidth: 0 }}>
           <label style={labelStyle}>Ankunftzeit</label>
           <input className="input" style={inputStyle} type="time" value={flight.arrival_time} onChange={e => upd('arrival_time', e.target.value)} />
         </div>
