@@ -289,11 +289,25 @@ export default function Dashboard({ tripId, onBack }) {
                 {flightStatus.note && (
                   <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.6)', marginTop: 4 }}>{flightStatus.note}</div>
                 )}
-                {flightStatus.checked_at && (
-                  <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginTop: 4 }}>
-                    Abgefragt: {new Date(flightStatus.checked_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
-                  </div>
-                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+                  {flightStatus.checked_at && (
+                    <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)' }}>
+                      Abgefragt: {new Date(flightStatus.checked_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
+                    </span>
+                  )}
+                  {flightStatus.source && (
+                    <span style={{
+                      fontSize: '0.65rem',
+                      background: flightStatus.source === 'aerodatabox' ? 'rgba(59,130,246,0.25)' : 'rgba(234,179,8,0.25)',
+                      color:      flightStatus.source === 'aerodatabox' ? '#93c5fd' : '#fde047',
+                      borderRadius: 99,
+                      padding: '1px 7px',
+                      fontWeight: 600,
+                    }}>
+                      {flightStatus.source === 'aerodatabox' ? '📡 AeroDataBox' : '🔍 Websuche'}
+                    </span>
+                  )}
+                </div>
               </div>
             )}
             {flightStatusError && (
