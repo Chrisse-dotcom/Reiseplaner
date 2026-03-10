@@ -229,53 +229,68 @@ Berücksichtige typische Risiken des Reiselands: Klima, häufige Erkrankungen, H
   }
 });
 
-// ── Flight status (live) ─────────────────────────────────────────────────────
-// Uses AviationStack API if AVIATIONSTACK_API_KEY is set, otherwise Claude web search
+// ── Flight status & lookup via AeroDataBox (RapidAPI) ────────────────────────
+// Set AERODATABOX_API_KEY in Railway env vars (free tier at rapidapi.com/aedbx/api/aerodatabox)
 
-function toHHMM(isoString) {
-  if (!isoString) return null;
-  try {
-    const d = new Date(isoString);
-    return d.toTimeString().slice(0, 5);
-  } catch (_) { return null; }
-}
-
-async function fetchStatusViaAviationStack(flightNumber, date) {
-  const key = process.env.AVIATIONSTACK_API_KEY;
+async function fetchViaAeroDataBox(flightNumber, date) {
+  const key = process.env.AERODATABOX_API_KEY;
   const iata = flightNumber.trim().replace(/\s+/g, '');
-  const params = new URLSearchParams({ access_key: key, flight_iata: iata });
-  if (date) params.append('flight_date', date);
-  const url = `http://api.aviationstack.com/v1/flights?${params}`;
-  console.log('[AviationStack status] URL:', url.replace(key, '***'));
-  const resp = await fetch(url);
-  const json = await resp.json();
-  console.log('[AviationStack status] response:', JSON.stringify(json).slice(0, 500));
-  if (json.error) throw new Error(`AviationStack: ${json.error.code} – ${json.error.info}`);
-  if (!resp.ok) throw new Error(`AviationStack HTTP ${resp.status}`);
-  const flight = (json.data || [])[0];
+  // Date defaults to today if not provided
+  const d = date || new Date().toISOString().slice(0, 10);
+  const url = `https://aerodatabox.p.rapidapi.com/flights/number/${encodeURIComponent(iata)}/${d}`;
+  console.log('[AeroDataBox] GET', url);
+  const resp = await fetch(url, {
+    headers: {
+      'X-RapidAPI-Key':  key,
+      'X-RapidAPI-Host': 'aerodatabox.p.rapidapi.com',
+    },
+  });
+  const text = await resp.text();
+  console.log('[AeroDataBox] status:', resp.status, 'body:', text.slice(0, 500));
+  if (resp.status === 404) return null; // flight not found
+  if (!resp.ok) throw new Error(`AeroDataBox HTTP ${resp.status}: ${text.slice(0, 200)}`);
+  const json = JSON.parse(text);
+  const flight = Array.isArray(json) ? json[0] : json;
   if (!flight) return null;
 
-  const rawStatus = flight.flight_status; // scheduled|active|landed|cancelled|incident|diverted
-  const depDelay = flight.departure?.delay || 0;
-  let status;
-  if (rawStatus === 'cancelled') status = 'cancelled';
-  else if (rawStatus === 'landed' || rawStatus === 'active' || rawStatus === 'scheduled') {
-    status = depDelay >= 5 ? 'delayed' : 'on_time';
-  } else {
-    status = 'unknown';
-  }
+  const dep = flight.departure || {};
+  const arr = flight.arrival   || {};
 
-  const noteMap = { landed: 'Gelandet', active: 'Im Flug', scheduled: 'Planmäßig', diverted: 'Umgeleitet', incident: 'Vorfall gemeldet' };
+  // scheduled local time: "2024-03-15 10:00+01:00" → "10:00"
+  const localTime = (obj) => {
+    const t = obj.scheduledTime?.local || obj.actualTime?.local || null;
+    return t ? t.slice(11, 16) : null;
+  };
+
+  // map status string to our format
+  const rawStatus = (flight.status || '').toLowerCase();
+  let status = 'unknown';
+  if (rawStatus.includes('cancel'))   status = 'cancelled';
+  else if (rawStatus.includes('land') || rawStatus.includes('arriv')) status = 'on_time';
+  else if (rawStatus.includes('delay')) status = 'delayed';
+  else if (rawStatus.includes('active') || rawStatus.includes('en route')) status = 'on_time';
+  else if (rawStatus.includes('schedul') || rawStatus.includes('expected')) status = 'on_time';
+
+  const depDelay = dep.delay ?? 0;
+  if (depDelay >= 5) status = 'delayed';
 
   return {
+    // lookup fields
+    airline:           flight.airline?.name   || null,
+    departure_airport: dep.airport?.iata      || null,
+    arrival_airport:   arr.airport?.iata      || null,
+    departure_time:    localTime(dep),
+    arrival_time:      localTime(arr),
+    gate:              dep.gate               || null,
+    terminal:          dep.terminal           || null,
+    // status fields
     status,
-    delay_minutes: depDelay >= 5 ? depDelay : null,
-    actual_departure: toHHMM(flight.departure?.actual || flight.departure?.estimated),
-    actual_arrival: toHHMM(flight.arrival?.actual || flight.arrival?.estimated),
-    gate: flight.departure?.gate || null,
-    terminal: flight.departure?.terminal || null,
-    note: noteMap[rawStatus] || null,
-    checked_at: new Date().toISOString(),
+    delay_minutes:     depDelay >= 5 ? depDelay : null,
+    actual_departure:  dep.actualTime?.local?.slice(11, 16) || null,
+    actual_arrival:    arr.actualTime?.local?.slice(11, 16) || null,
+    note:              flight.status || null,
+    checked_at:        new Date().toISOString(),
+    source:            'aerodatabox',
   };
 }
 
@@ -299,6 +314,7 @@ Werte: status = on_time / delayed / cancelled / unknown. delay_minutes = Verspä
   if (!match) return null;
   const data = JSON.parse(match[0]);
   data.checked_at = new Date().toISOString();
+  data.source = 'websearch';
   return data;
 }
 
@@ -308,11 +324,11 @@ router.post('/flight-status', async (req, res) => {
 
   try {
     let result = null;
-    if (process.env.AVIATIONSTACK_API_KEY) {
+    if (process.env.AERODATABOX_API_KEY) {
       try {
-        result = await fetchStatusViaAviationStack(flightNumber, date);
+        result = await fetchViaAeroDataBox(flightNumber, date);
       } catch (apiErr) {
-        console.warn('AviationStack status failed, falling back to web search:', apiErr.message);
+        console.warn('AeroDataBox status failed, falling back to web search:', apiErr.message);
       }
     }
     if (!result) {
@@ -326,33 +342,7 @@ router.post('/flight-status', async (req, res) => {
   }
 });
 
-// ── Flight lookup ────────────────────────────────────────────────────────────
-// Uses AviationStack API if AVIATIONSTACK_API_KEY is set, otherwise Claude web search
-
-async function fetchLookupViaAviationStack(flightNumber, date) {
-  const key = process.env.AVIATIONSTACK_API_KEY;
-  const iata = flightNumber.trim().replace(/\s+/g, '');
-  const params = new URLSearchParams({ access_key: key, flight_iata: iata });
-  if (date) params.append('flight_date', date);
-  const url = `http://api.aviationstack.com/v1/flights?${params}`;
-  console.log('[AviationStack lookup] URL:', url.replace(key, '***'));
-  const resp = await fetch(url);
-  const json = await resp.json();
-  console.log('[AviationStack lookup] response:', JSON.stringify(json).slice(0, 500));
-  if (json.error) throw new Error(`AviationStack: ${json.error.code} – ${json.error.info}`);
-  const flight = (json.data || [])[0];
-  if (!flight) return null;
-  return {
-    airline:           flight.airline?.name   || null,
-    departure_airport: flight.departure?.iata || null,
-    arrival_airport:   flight.arrival?.iata   || null,
-    departure_time:    toHHMM(flight.departure?.scheduled) || null,
-    arrival_time:      toHHMM(flight.arrival?.scheduled)   || null,
-    gate:              flight.departure?.gate     || null,
-    terminal:          flight.departure?.terminal || null,
-    source:            'aviationstack',
-  };
-}
+// ── Flight lookup ─────────────────────────────────────────────────────────────
 
 async function fetchLookupViaClaudeSearch(flightNumber, date) {
   const prompt = `Suche aktuelle Flugdaten für Flug ${flightNumber.trim()}${date ? ' am ' + date : ''}.
@@ -382,11 +372,11 @@ router.post('/flight-lookup', async (req, res) => {
 
   try {
     let result = null;
-    if (process.env.AVIATIONSTACK_API_KEY) {
+    if (process.env.AERODATABOX_API_KEY) {
       try {
-        result = await fetchLookupViaAviationStack(flightNumber, date);
+        result = await fetchViaAeroDataBox(flightNumber, date);
       } catch (apiErr) {
-        console.warn('AviationStack lookup failed, falling back to web search:', apiErr.message);
+        console.warn('AeroDataBox lookup failed, falling back to web search:', apiErr.message);
       }
     }
     if (!result) {
@@ -400,28 +390,24 @@ router.post('/flight-lookup', async (req, res) => {
   }
 });
 
-// ── AviationStack diagnostics ────────────────────────────────────────────────
-// GET /api/aviationstack-test?flight=LH765&date=2026-03-10
+// ── AeroDataBox diagnostics ───────────────────────────────────────────────────
+// GET /api/aerodatabox-test?flight=LH765&date=2026-03-10
 
-router.get('/aviationstack-test', async (req, res) => {
-  const key = process.env.AVIATIONSTACK_API_KEY;
+router.get('/aerodatabox-test', async (req, res) => {
+  const key = process.env.AERODATABOX_API_KEY;
   if (!key) {
-    return res.json({ ok: false, reason: 'AVIATIONSTACK_API_KEY ist nicht gesetzt (Railway → Variables)' });
+    return res.json({ ok: false, reason: 'AERODATABOX_API_KEY ist nicht gesetzt (Railway → Variables)' });
   }
-
   const flight = (req.query.flight || 'LH1').replace(/\s+/g, '');
-  const params = new URLSearchParams({ access_key: key, flight_iata: flight });
-  if (req.query.date) params.append('flight_date', req.query.date);
-  const url = `http://api.aviationstack.com/v1/flights?${params}`;
-
+  const d = req.query.date || new Date().toISOString().slice(0, 10);
+  const url = `https://aerodatabox.p.rapidapi.com/flights/number/${encodeURIComponent(flight)}/${d}`;
   try {
-    const resp = await fetch(url);
-    const json = await resp.json();
-    if (json.error) {
-      return res.json({ ok: false, reason: `AviationStack Fehler: ${json.error.code} – ${json.error.info}`, raw: json.error });
-    }
-    const count = (json.data || []).length;
-    return res.json({ ok: true, key_set: true, results: count, first: json.data?.[0] || null });
+    const resp = await fetch(url, {
+      headers: { 'X-RapidAPI-Key': key, 'X-RapidAPI-Host': 'aerodatabox.p.rapidapi.com' },
+    });
+    const text = await resp.text();
+    if (!resp.ok) return res.json({ ok: false, reason: `HTTP ${resp.status}`, body: text.slice(0, 300) });
+    return res.json({ ok: true, result: JSON.parse(text) });
   } catch (err) {
     return res.json({ ok: false, reason: 'Netzwerkfehler: ' + err.message });
   }
