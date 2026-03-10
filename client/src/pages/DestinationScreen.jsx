@@ -146,21 +146,23 @@ export default function DestinationScreen({ onBack, onCreate }) {
         {/* Travel dates */}
         <div style={{ marginBottom: 24 }}>
           <p style={{ fontWeight: 600, marginBottom: 12 }}>📅 Reisezeitraum (optional)</p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, overflow: 'hidden' }}>
+            <div style={{ minWidth: 0 }}>
               <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Von</label>
               <input
                 type="date"
                 className="input"
+                style={{ width: '100%', boxSizing: 'border-box' }}
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
               />
             </div>
-            <div>
+            <div style={{ minWidth: 0 }}>
               <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Bis</label>
               <input
                 type="date"
                 className="input"
+                style={{ width: '100%', boxSizing: 'border-box' }}
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
               />
