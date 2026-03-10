@@ -5,7 +5,7 @@ function emptyFlight(label, date = '') {
 }
 
 const labelStyle = { display: 'block', fontSize: '0.75rem', color: '#64748b', fontWeight: 600, marginBottom: 4 };
-const inputStyle  = { padding: '8px 10px', fontSize: '0.9rem' };
+const inputStyle  = { padding: '8px 10px', fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' };
 
 function FlightCard({ flight, index, total, onChange, onRemove, onLookup, lookingUp }) {
   const isFirst  = index === 0;
