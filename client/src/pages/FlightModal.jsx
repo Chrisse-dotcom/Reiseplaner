@@ -12,7 +12,7 @@ function emptyFlight(label, date = '') {
 const labelStyle = { display: 'block', fontSize: '0.75rem', color: '#64748b', fontWeight: 600, marginBottom: 4 };
 const inputStyle  = { padding: '8px 10px', fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' };
 
-function FlightCard({ flight, index, total, onChange, onRemove, onLookup, lookingUp }) {
+function FlightCard({ flight, index, total, onChange, onRemove, onLookup, lookingUp, lookupLabel }) {
   const isFirst  = index === 0;
   const isLast   = index === total - 1;
   const canRemove = total > 2 && !isFirst && !isLast;
@@ -69,7 +69,7 @@ function FlightCard({ flight, index, total, onChange, onRemove, onLookup, lookin
           </button>
         </div>
         {lookingUp && (
-          <p style={{ fontSize: '0.75rem', color: '#3b82f6', marginTop: 4 }}>Flugdaten werden von AviationStack abgerufen…</p>
+          <p style={{ fontSize: '0.75rem', color: '#3b82f6', marginTop: 4 }}>{lookupLabel || 'Flugdaten werden abgerufen…'}</p>
         )}
       </div>
 
@@ -153,6 +153,7 @@ export default function FlightModal({ trip, onClose, onSaved }) {
   const [saving,     setSaving]     = useState(false);
   const [error,      setError]      = useState(null);
   const [lookupLoading, setLookupLoading] = useState({}); // { [index]: bool }
+  const [lookupLabel,   setLookupLabel]   = useState({}); // { [index]: string }
   const [lookupSuccess, setLookupSuccess] = useState({}); // { [index]: bool }
 
   const updateFlight = (index, field, val) =>
@@ -176,8 +177,13 @@ export default function FlightModal({ trip, onClose, onSaved }) {
     if (!flight.flight_number.trim()) return;
 
     setLookupLoading(prev => ({ ...prev, [index]: true }));
+    setLookupLabel(prev => ({ ...prev, [index]: 'Flugdaten werden von AviationStack abgerufen…' }));
     setLookupSuccess(prev => ({ ...prev, [index]: false }));
     setError(null);
+
+    const fallbackTimer = setTimeout(() => {
+      setLookupLabel(prev => ({ ...prev, [index]: 'Wechsle auf Websuche…' }));
+    }, 3000);
 
     try {
       const res = await fetch('/api/flight-lookup', {
@@ -202,7 +208,9 @@ export default function FlightModal({ trip, onClose, onSaved }) {
     } catch (err) {
       setError(`${flight.flight_number}: ${err.message}`);
     } finally {
+      clearTimeout(fallbackTimer);
       setLookupLoading(prev => ({ ...prev, [index]: false }));
+      setLookupLabel(prev => ({ ...prev, [index]: '' }));
     }
   };
 
@@ -256,6 +264,7 @@ export default function FlightModal({ trip, onClose, onSaved }) {
               onRemove={removeFlight}
               onLookup={handleLookup}
               lookingUp={!!lookupLoading[i]}
+              lookupLabel={lookupLabel[i] || ''}
             />
           </div>
         ))}
