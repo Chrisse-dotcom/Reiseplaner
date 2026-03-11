@@ -267,17 +267,17 @@ export default function Dashboard({ tripId, onBack }) {
             <div style={{
               flex: 1,
               background: 'rgba(255,255,255,0.15)',
-              borderRadius: 14,
-              padding: '10px 8px',
+              borderRadius: 10,
+              padding: '6px 6px',
               textAlign: 'center',
             }}>
-              <div style={{ fontSize: '1rem', marginBottom: 3 }}>{flag}</div>
+              <div style={{ fontSize: '0.75rem', marginBottom: 1 }}>{flag}</div>
               <div style={{
-                fontSize: '1.45rem', fontWeight: 800,
+                fontSize: '1.05rem', fontWeight: 800,
                 fontVariantNumeric: 'tabular-nums',
-                letterSpacing: '0.04em', lineHeight: 1,
+                letterSpacing: '0.03em', lineHeight: 1,
               }}>{time}</div>
-              <div style={{ fontSize: '0.65rem', opacity: 0.7, marginTop: 4, fontWeight: 500 }}>{label}</div>
+              <div style={{ fontSize: '0.58rem', opacity: 0.7, marginTop: 3, fontWeight: 500 }}>{label}</div>
             </div>
           );
 
