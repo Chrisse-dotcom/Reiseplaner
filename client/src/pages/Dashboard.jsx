@@ -257,34 +257,52 @@ export default function Dashboard({ tripId, onBack }) {
 
         {/* ── Live-Uhrzeiten ── */}
         {(() => {
-          const destTz = COUNTRY_TIMEZONE[trip.country] || COUNTRY_TIMEZONE[trip.destination];
+          const destTz   = COUNTRY_TIMEZONE[trip.country] || COUNTRY_TIMEZONE[trip.destination];
           const berlinTime = fmtTime(now, 'Europe/Berlin');
           const destTime   = destTz ? fmtTime(now, destTz) : null;
           const diff       = destTz ? hourDiff('Europe/Berlin', destTz, now) : null;
           const diffStr    = diff != null && diff !== 0 ? (diff > 0 ? `+${diff}h` : `${diff}h`) : null;
-          const sameTime   = diff === 0;
+
+          const TimeBox = ({ flag, time, label }) => (
+            <div style={{
+              flex: 1,
+              background: 'rgba(255,255,255,0.15)',
+              borderRadius: 14,
+              padding: '10px 8px',
+              textAlign: 'center',
+            }}>
+              <div style={{ fontSize: '1rem', marginBottom: 3 }}>{flag}</div>
+              <div style={{
+                fontSize: '1.45rem', fontWeight: 800,
+                fontVariantNumeric: 'tabular-nums',
+                letterSpacing: '0.04em', lineHeight: 1,
+              }}>{time}</div>
+              <div style={{ fontSize: '0.65rem', opacity: 0.7, marginTop: 4, fontWeight: 500 }}>{label}</div>
+            </div>
+          );
+
           return (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10, position: 'relative', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.15)', borderRadius: 99, padding: '4px 12px' }}>
-                <span style={{ fontSize: '0.9rem' }}>🇩🇪</span>
-                <span style={{ fontSize: '0.9rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.02em' }}>{berlinTime}</span>
-                <span style={{ fontSize: '0.72rem', opacity: 0.75 }}>Berlin</span>
-              </div>
-              {destTime && !sameTime && (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12, position: 'relative' }}>
+              <TimeBox flag="🇩🇪" time={berlinTime} label="Deutschland" />
+              {destTime ? (
                 <>
-                  <span style={{ opacity: 0.5, fontSize: '0.8rem' }}>→</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.15)', borderRadius: 99, padding: '4px 12px' }}>
-                    <span style={{ fontSize: '0.9rem' }}>🌍</span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.02em' }}>{destTime}</span>
-                    <span style={{ fontSize: '0.72rem', opacity: 0.75 }}>{trip.country || trip.destination}</span>
+                  <div style={{ flexShrink: 0, textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.75rem', opacity: 0.5 }}>→</div>
                     {diffStr && (
-                      <span style={{ fontSize: '0.68rem', background: 'rgba(255,255,255,0.2)', borderRadius: 99, padding: '1px 6px', fontWeight: 700 }}>{diffStr}</span>
+                      <div style={{
+                        fontSize: '0.65rem', fontWeight: 700,
+                        background: 'rgba(255,255,255,0.22)',
+                        borderRadius: 99, padding: '2px 7px', marginTop: 3,
+                      }}>{diffStr}</div>
+                    )}
+                    {!diffStr && (
+                      <div style={{ fontSize: '0.6rem', opacity: 0.55, marginTop: 3 }}>gleich</div>
                     )}
                   </div>
+                  <TimeBox flag="🌍" time={destTime} label="Reiseland" />
                 </>
-              )}
-              {destTime && sameTime && (
-                <span style={{ fontSize: '0.72rem', opacity: 0.6 }}>· gleiche Zeitzone</span>
+              ) : (
+                <div style={{ flex: 1 }} />
               )}
             </div>
           );
