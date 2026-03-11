@@ -129,6 +129,68 @@ export default function StartScreen({ onSelectTrip, onNewTrip }) {
           const isPast = status === 'past';
           const days   = status === 'upcoming' ? daysUntil(trip.start_date) : null;
 
+          let badge = null;
+          if (status === 'current') {
+            badge = (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                fontSize: '0.78rem', fontWeight: 700, borderRadius: 99,
+                padding: '5px 12px',
+                background: 'linear-gradient(135deg, #bbf7d0, #86efac)',
+                color: '#14532d',
+                boxShadow: '0 1px 4px rgba(22,101,52,0.15)',
+                letterSpacing: '0.01em',
+              }}>
+                <span style={{ fontSize: '0.9rem' }}>🏝️</span> Läuft gerade
+              </span>
+            );
+          } else if (status === 'upcoming' && days != null) {
+            const urgent = days <= 7;
+            const soon   = days <= 30;
+            badge = (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                fontSize: '0.78rem', fontWeight: 700, borderRadius: 99,
+                padding: '5px 12px',
+                background: urgent ? 'linear-gradient(135deg, #fed7aa, #fb923c)'
+                           : soon  ? 'linear-gradient(135deg, #bfdbfe, #60a5fa)'
+                                   : 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
+                color: urgent ? '#7c2d12' : soon ? '#1e3a8a' : '#475569',
+                boxShadow: urgent ? '0 1px 4px rgba(234,88,12,0.2)'
+                          : soon  ? '0 1px 4px rgba(37,99,235,0.15)'
+                                  : '0 1px 3px rgba(0,0,0,0.08)',
+                letterSpacing: '0.01em',
+              }}>
+                {days === 0 ? (
+                  <><span>🚀</span> Heute!</>
+                ) : days === 1 ? (
+                  <><span>⏳</span> Morgen</>
+                ) : (
+                  <>
+                    <span style={{
+                      background: urgent ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.5)',
+                      borderRadius: 99, padding: '1px 7px',
+                      fontSize: '0.85rem', fontWeight: 800,
+                    }}>{days}</span>
+                    Tage
+                  </>
+                )}
+              </span>
+            );
+          } else if (isPast) {
+            badge = (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center',
+                fontSize: '0.75rem', fontWeight: 600, borderRadius: 99,
+                padding: '4px 11px',
+                background: '#f1f5f9', color: '#94a3b8',
+                border: '1px solid #e2e8f0',
+              }}>
+                Vergangen
+              </span>
+            );
+          }
+
           return (
             <div
               key={trip.id}
@@ -143,38 +205,9 @@ export default function StartScreen({ onSelectTrip, onNewTrip }) {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                     <span style={{ fontSize: '1.5rem' }}>📍</span>
                     <h3 style={{ margin: 0 }}>{trip.country || trip.destination}</h3>
-
-                    {/* Status badges */}
-                    {status === 'current' && (
-                      <span style={{
-                        fontSize: '0.72rem', fontWeight: 700, borderRadius: 99,
-                        padding: '2px 9px', background: '#dcfce7', color: '#166534',
-                      }}>
-                        🏝️ Läuft gerade
-                      </span>
-                    )}
-                    {status === 'upcoming' && days != null && (
-                      <span style={{
-                        fontSize: '0.72rem', fontWeight: 700, borderRadius: 99,
-                        padding: '2px 9px',
-                        background: days <= 7  ? '#fff7ed' : days <= 30 ? '#eff6ff' : '#f8fafc',
-                        color:      days <= 7  ? '#9a3412' : days <= 30 ? '#1d4ed8' : '#475569',
-                        border:     `1px solid ${days <= 7 ? '#fed7aa' : days <= 30 ? '#bfdbfe' : '#e2e8f0'}`,
-                      }}>
-                        {days === 0 ? '🚀 Heute!' : days === 1 ? '⏳ Morgen' : `⏳ Noch ${days} Tage`}
-                      </span>
-                    )}
-                    {isPast && (
-                      <span style={{
-                        fontSize: '0.72rem', fontWeight: 600, borderRadius: 99,
-                        padding: '2px 9px', background: '#f1f5f9', color: '#94a3b8',
-                      }}>
-                        Vergangen
-                      </span>
-                    )}
                   </div>
 
                   {trip.destination && trip.destination !== trip.country && (
@@ -193,12 +226,18 @@ export default function StartScreen({ onSelectTrip, onNewTrip }) {
 
                 <button
                   className="btn btn-ghost"
-                  style={{ fontSize: '1.2rem', padding: '4px 8px' }}
+                  style={{ fontSize: '1.2rem', padding: '4px 8px', flexShrink: 0 }}
                   onClick={(e) => { e.stopPropagation(); setDeleteConfirm(trip.id); }}
                 >
                   🗑
                 </button>
               </div>
+
+              {badge && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+                  {badge}
+                </div>
+              )}
             </div>
           );
         })}
